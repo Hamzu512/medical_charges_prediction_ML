@@ -1,0 +1,69 @@
+**3️⃣ src/train_model.py** 
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import plotly.express as px
+from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.model_selection import train_test_split
+
+# Download dataset
+medical_charges_url = 'https://raw.githubusercontent.com/stedy/Machine-Learning-with-R-datasets/refs/heads/master/insurance.csv'
+from urllib.request import urlretrieve
+urlretrieve(medical_charges_url, 'medical.csv')
+
+# Load data
+medical_df = pd.read_csv('medical.csv')
+
+# Encode smoker and sex
+medical_df['smoker_code'] = medical_df['smoker'].map({'yes': 1, 'no': 0})
+medical_df['sex_code'] = medical_df['sex'].map({'male': 1, 'female': 0})
+
+# One-hot encode region
+enc = OneHotEncoder()
+region_encoded = enc.fit_transform(medical_df[['region']]).toarray()
+region_cols = enc.categories_[0]
+medical_df[region_cols] = region_encoded
+
+# Prepare input features and target
+input_cols = ['age', 'bmi', 'children', 'smoker_code', 'sex_code'] + list(region_cols)
+X = medical_df[input_cols]
+y = medical_df['charges']
+
+# Scale numerical features
+numeric_cols = ['age', 'bmi', 'children']
+scaler = StandardScaler()
+scaled_numeric = scaler.fit_transform(medical_df[numeric_cols])
+categorical_data = medical_df[['smoker_code', 'sex_code'] + list(region_cols)].values
+
+# Combine scaled numeric + categorical
+X_scaled = np.concatenate((scaled_numeric, categorical_data), axis=1)
+
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.1, random_state=42)
+
+# Train model
+model = LinearRegression()
+model.fit(X_train, y_train)
+
+# RMSE function
+def rmse(targets, predictions):
+    return np.sqrt(np.mean(np.square(targets - predictions)))
+
+# Evaluate
+train_loss = rmse(y_train, model.predict(X_train))
+test_loss = rmse(y_test, model.predict(X_test))
+
+print(f"Train RMSE: {train_loss}")
+print(f"Test RMSE: {test_loss}")
+print("Coefficients:", model.coef_)
+print("Intercept:", model.intercept_)
+
+# Predict for a new customer
+new_customer = np.array([[28, 30, 2]])  # age, bmi, children
+scaled_new = scaler.transform(new_customer)
+cat_values = np.array([[1, 0, 0, 1, 0, 0]])  # smoker_code, sex_code, one-hot region
+new_input = np.concatenate((scaled_new, cat_values), axis=1)
+
+print("Predicted Charges:", model.predict(new_input))
