@@ -1,0 +1,7 @@
+**2️⃣ requirements.txt**
+pandas
+numpy
+matplotlib
+seaborn
+plotly
+scikit-learn
